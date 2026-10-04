@@ -1,0 +1,8 @@
+app:
+  name: "Watanabe"
+
+auth:
+  mode: none
+  none:
+    email: you@example.com
+    name: Local Evaluator

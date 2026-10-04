@@ -1,0 +1,55 @@
+# dependencies
+# Local KB vault checkout / managed clone (see .env.local LOCAL_REPO_PATH).
+# Ignore the whole dir: it holds a separate clone of the KB repo.
+/data/
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# testing
+/coverage
+
+# agent chat runtime data (session registry, etc.)
+/.data
+
+# self-improvement ledger (local, noisy signal; wisdom is committed reflections)
+.harness/ledger.jsonl
+
+# agent worktree checkouts (local, ~1GB of full working copies)
+.claude/worktrees/
+
+# personal, machine-local instructions
+CLAUDE.local.md
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# env files
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# Product-critic walkthrough output (screenshots are local, the report is committed separately)
+product-critic-output/
+product-critic-stage/

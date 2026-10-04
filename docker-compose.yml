@@ -1,0 +1,37 @@
+services:
+  data-init:
+    image: busybox:1.36
+    command: ["chown", "-R", "1001:1001", "/data"]
+    volumes:
+      - data:/data
+
+  watanabe:
+    build: .
+    depends_on:
+      data-init:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:3100:3100"
+    environment:
+      PORTAL_CONFIG: /config/portal.yaml
+      PORTAL_ALLOW_NO_AUTH: "1"
+      BOOTSTRAP_ADMINS: you@example.com
+      PORTAL_DB_PATH: /data/portal.db
+      LOCAL_REPO_PATH: /vault
+      VAULT_SUBDIR: ""
+      AGENT_CHAT_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY to your Anthropic API key}
+      KB_WRITE_ENABLED: "0"
+      MEMORY_ENABLED: "0"
+      CANVAS_ENABLED: "1"
+      TASKS_ENABLED: "1"
+      PROJECTS_ENABLED: "1"
+      SHARED_DOCS_ENABLED: "1"
+      ARTIFACTS_ENABLED: "1"
+      INDEX_ENABLED: "1"
+    volumes:
+      - ./docker/portal.local.yaml:/config/portal.yaml:ro
+      - ./vault:/vault:ro
+      - data:/data
+
+volumes:
+  data:

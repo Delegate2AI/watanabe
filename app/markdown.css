@@ -1,0 +1,365 @@
+/* ============================================================================
+   Editorial markdown prose (`.md`): one stylesheet shared by the client
+   <Markdown> component (components/ui/markdown.tsx) and the server KB renderer
+   (lib/kb/markdown.tsx, via components/kb/doc-view.tsx). Imported by globals.css.
+
+   Color flows only through semantic --prose-* variables, so the same rules
+   theme in two palettes: the defaults map to the terracotta shell tokens
+   (design-tokens.css), and `.agent-chat .md` remaps them to the green agent
+   chat set (--color-*) so chat and /embed keep their accent. Both token sets
+   define light AND dark values, so --prose-* inherits theming for free; only
+   the two hard-coded syntax hues need explicit dark overrides.
+   ============================================================================ */
+.md {
+  --prose-ink: var(--ink);
+  --prose-strong: var(--ink);
+  --prose-muted: var(--ink-muted);
+  --prose-faint: var(--ink-faint);
+  --prose-accent: var(--accent);
+  --prose-line: var(--line);
+  --prose-surface: var(--surface-2);
+
+  /* highlight.js token palette. Keyword tracks the surface accent; string and
+     number reuse the palette's semantic green/amber; function and type are the
+     two hues the palette lacks (explicit dark overrides at the bottom). */
+  --prose-syntax-keyword: var(--prose-accent);
+  --prose-syntax-string: var(--good);
+  --prose-syntax-number: var(--warn);
+  --prose-syntax-comment: var(--ink-faint);
+  --prose-syntax-function: #3b6ea5;
+  --prose-syntax-type: #7a5c9e;
+
+  color: var(--prose-ink);
+  font-size: 0.9375rem;
+  line-height: 1.7;
+}
+.md > :first-child {
+  margin-top: 0;
+}
+.md > :last-child {
+  margin-bottom: 0;
+}
+
+/* Serif headings give long-form docs an editorial voice distinct from the sans
+   UI chrome. h1-h5 carry weight; h6 steps down to a muted uppercase label. */
+.md h1,
+.md h2,
+.md h3,
+.md h4,
+.md h5,
+.md h6 {
+  font-family: var(--serif);
+  color: var(--prose-strong);
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 1.6em 0 0.6em;
+  /* Even out ragged headings rather than letting one word drop alone. */
+  text-wrap: balance;
+}
+.md h1 {
+  font-size: 1.7rem;
+  letter-spacing: -0.01em;
+}
+.md h2 {
+  font-size: 1.32rem;
+  border-bottom: 1px solid var(--prose-line);
+  padding-bottom: 0.3em;
+}
+.md h3 {
+  font-size: 1.12rem;
+}
+.md h4 {
+  font-size: 1rem;
+}
+.md h5 {
+  font-size: 0.9rem;
+}
+.md h6 {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--prose-muted);
+}
+.md p {
+  margin: 0.85em 0;
+  /* Avoid single-word orphans on the last line of prose. */
+  text-wrap: pretty;
+}
+.md a {
+  color: var(--prose-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+.md a:hover {
+  text-decoration-thickness: 2px;
+}
+.md strong {
+  color: var(--prose-strong);
+  font-weight: 600;
+}
+.md em {
+  font-style: italic;
+}
+.md del {
+  color: var(--prose-muted);
+}
+
+.md ul,
+.md ol {
+  margin: 0.85em 0;
+  padding-left: 1.5em;
+}
+.md ul {
+  list-style: disc;
+}
+.md ol {
+  list-style: decimal;
+}
+.md li {
+  margin: 0.35em 0;
+  text-wrap: pretty;
+}
+.md li::marker {
+  color: var(--prose-faint);
+}
+.md li > ul,
+.md li > ol {
+  margin: 0.35em 0;
+}
+/* GFM task lists: drop the bullet and align the checkbox with the text. */
+.md li.task-list-item {
+  list-style: none;
+  margin-left: -1.35em;
+  padding-left: 1.35em;
+}
+.md li.task-list-item input[type="checkbox"] {
+  margin-right: 0.5em;
+  accent-color: var(--prose-accent);
+  vertical-align: middle;
+}
+
+/* KB docs embed diagrams and screenshots. A hairline edge keeps a
+   white-background image from bleeding into the surface behind it. Uses a
+   spread shadow rather than `outline` so it tracks the border-radius exactly. */
+.md img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px var(--image-outline);
+}
+.md blockquote {
+  border-left: 3px solid var(--prose-accent);
+  padding: 0.1em 0 0.1em 1em;
+  margin: 1em 0;
+  color: var(--prose-muted);
+  font-style: italic;
+}
+.md blockquote p {
+  margin: 0.4em 0;
+}
+
+.md code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--prose-surface);
+  border: 1px solid var(--prose-line);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+.md pre {
+  background: var(--prose-surface);
+  border: 1px solid var(--prose-line);
+  border-radius: 10px;
+  padding: 0.95em 1.1em;
+  overflow-x: auto;
+  margin: 1em 0;
+  line-height: 1.6;
+}
+.md pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.82em;
+  color: var(--prose-ink);
+}
+
+/* Tables scroll horizontally inside their own wrapper (lib/markdown/shared.tsx)
+   so a wide table never forces the page wide. */
+.md .md-table {
+  overflow-x: auto;
+  margin: 1em 0;
+  border: 1px solid var(--prose-line);
+  border-radius: 10px;
+}
+
+/* Rendered mermaid diagram (components/ui/mermaid.tsx). Same containment rule
+   as .md-table: a wide diagram scrolls inside its own box rather than forcing
+   the whole page wide. Centred, because a diagram narrower than the column
+   reads as misplaced when it is left-aligned against prose.
+
+   Two elements, not one: the outer box carries the frame and positions the zoom
+   control, the inner one does the scrolling. Putting both on one element would
+   scroll the control off with the diagram, since an absolutely positioned child
+   of a scroll container is placed against the scrolled content. */
+.md .md-mermaid {
+  position: relative;
+  margin: 1em 0;
+  border: 1px solid var(--prose-line);
+  border-radius: 10px;
+  background: var(--prose-surface);
+}
+.md .md-mermaid-frame {
+  overflow-x: auto;
+  padding: 0.75em;
+  text-align: center;
+}
+.md .md-mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Opens the zoom viewer (components/ui/mermaid-viewer.tsx). Visible at rest
+   rather than on hover alone: a touch reader has no hover, and a control that
+   only appears on one is a control most people never find. */
+.md .md-mermaid-zoom {
+  position: absolute;
+  top: 0.4em;
+  right: 0.4em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35em;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--prose-ink);
+  opacity: 0.45;
+  cursor: pointer;
+  transition: opacity 0.12s, background 0.12s, border-color 0.12s;
+}
+.md .md-mermaid-zoom svg {
+  width: 0.95em;
+  height: 0.95em;
+}
+.md .md-mermaid:hover .md-mermaid-zoom,
+.md .md-mermaid-zoom:focus-visible {
+  opacity: 1;
+  border-color: var(--prose-line);
+  /* Mixed off the ink rather than named as its own surface token, the same way
+     .portal-selection-highlight is: it has to lift off --prose-surface in both
+     palettes, and only a tint of the foreground is guaranteed to. */
+  background: color-mix(in srgb, var(--prose-ink) 8%, transparent);
+}
+.md .md-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86em;
+}
+.md th,
+.md td {
+  padding: 0.5em 0.8em;
+  text-align: left;
+  border-bottom: 1px solid var(--prose-line);
+}
+.md thead th {
+  background: var(--prose-surface);
+  color: var(--prose-strong);
+  font-weight: 600;
+  border-bottom: 2px solid var(--prose-line);
+}
+.md tbody tr:last-child td {
+  border-bottom: none;
+}
+.md hr {
+  border: none;
+  border-top: 1px solid var(--prose-line);
+  margin: 1.6em 0;
+}
+
+/* highlight.js token theme, driven by the --prose-syntax-* variables so fenced
+   code matches the surrounding surface in light and dark. */
+.md .hljs-comment,
+.md .hljs-quote {
+  color: var(--prose-syntax-comment);
+  font-style: italic;
+}
+.md .hljs-keyword,
+.md .hljs-selector-tag,
+.md .hljs-literal,
+.md .hljs-doctag,
+.md .hljs-section,
+.md .hljs-name {
+  color: var(--prose-syntax-keyword);
+}
+.md .hljs-string,
+.md .hljs-regexp,
+.md .hljs-addition {
+  color: var(--prose-syntax-string);
+}
+.md .hljs-number,
+.md .hljs-symbol,
+.md .hljs-bullet,
+.md .hljs-meta {
+  color: var(--prose-syntax-number);
+}
+.md .hljs-title,
+.md .hljs-title.function_,
+.md .hljs-built_in {
+  color: var(--prose-syntax-function);
+}
+.md .hljs-type,
+.md .hljs-attr,
+.md .hljs-attribute,
+.md .hljs-variable,
+.md .hljs-template-variable {
+  color: var(--prose-syntax-type);
+}
+.md .hljs-emphasis {
+  font-style: italic;
+}
+.md .hljs-strong {
+  font-weight: 600;
+}
+.md .hljs-deletion {
+  color: var(--prose-accent);
+}
+
+/* Transient highlight (spec 11): toggled by components/vault/selection-toolbar.tsx
+   on the block(s) spanning a selection just added to the chat, then removed
+   after ~1.5s (a class toggle, since a Range wrap is unreliable across blocks). */
+.md .portal-selection-highlight {
+  background: color-mix(in srgb, var(--prose-accent) 18%, transparent);
+  transition: background 1.2s ease-out;
+  border-radius: 0.2em;
+}
+
+/* Chat + /embed keep the green agent accent; remap the prose tokens under the
+   AgentChat root (components/agent/agent-chat.tsx). */
+.agent-chat .md {
+  --prose-ink: var(--color-ink);
+  --prose-strong: var(--color-ink-strong);
+  --prose-muted: var(--color-ink-muted);
+  --prose-faint: var(--color-ink-faint);
+  --prose-accent: var(--color-accent);
+  --prose-line: var(--color-line);
+  --prose-surface: var(--color-surface-2);
+}
+
+/* Dark overrides for the two hard-coded syntax hues (token-derived ones
+   auto-theme). Mirror the shell's detection order: system-dark media query,
+   then explicit data-theme so a manual choice wins in both directions. */
+@media (prefers-color-scheme: dark) {
+  .md {
+    --prose-syntax-function: #7aa2d6;
+    --prose-syntax-type: #b39ddb;
+  }
+}
+:root[data-theme="light"] .md {
+  --prose-syntax-function: #3b6ea5;
+  --prose-syntax-type: #7a5c9e;
+}
+:root[data-theme="dark"] .md {
+  --prose-syntax-function: #7aa2d6;
+  --prose-syntax-type: #b39ddb;
+}

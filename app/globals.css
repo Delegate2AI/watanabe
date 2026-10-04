@@ -1,0 +1,225 @@
+@import "tailwindcss";
+/* Spec 18 design-system tokens (raw custom properties for the app shell).
+   Imported before `@theme inline` below references them. */
+@import "./design-tokens.css";
+/* Editorial markdown prose (`.md`): shared by the client <Markdown> and the
+   server KB renderer. Kept in its own file so this one stays focused. */
+@import "./markdown.css";
+/* Obsidian callouts: the same `.md` scope and the same --prose-* doctrine,
+   in their own file because markdown.css is already past the size threshold. */
+@import "./callouts.css";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+
+  /* Agent chat UI tokens (components/agent/*, components/ui/markdown.tsx). */
+  --color-surface: #ffffff;
+  --color-surface-2: #f4f5f6;
+  --color-line: #e2e4e7;
+  --color-ink: #1f2328;
+  --color-ink-strong: #0d1013;
+  --color-ink-muted: #5b6570;
+  --color-ink-faint: #8b939c;
+  --color-accent: #0f8a5f;
+  --color-accent-fg: #f4fbf8;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  /* Edge outline for embedded images — pure black in light mode so it reads as
+     a hairline shadow, never as a tinted grime line (see .md img below). */
+  --image-outline: rgba(0, 0, 0, 0.1);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  /* Spec 18 design-system tokens. Mapped `inline` on purpose: the value
+     (`var(--surface)`, ...) is inlined into each utility and NO `:root
+     --color-*` variable is emitted, so the pre-existing agent tokens
+     (`--color-surface` etc., still used by /embed via `var(--color-surface)`)
+     are left completely intact. The shell themes from `--surface`/`--ink`/...;
+     the embed chat themes from `--color-surface`/`--color-ink`/... . They are
+     two independent variable sets that happen to share a `--color-` prefix in
+     the Tailwind namespace only. See globals.token.test.ts. */
+  --color-bg: var(--bg);
+  --color-sidebar: var(--sidebar);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-hover: var(--surface-hover);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-good: var(--good);
+  --color-good-soft: var(--good-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+
+  --font-serif: var(--serif);
+
+  --radius-tab: var(--radius-tab);
+  --radius-icon: var(--radius-icon);
+  --radius-control: var(--radius-control);
+  --radius-send: var(--radius-send);
+  --radius-menu: var(--radius-menu);
+  --radius-chip: var(--radius-chip);
+  --radius-card: var(--radius-card);
+  --radius-composer: var(--radius-composer);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-elevated: var(--shadow);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+
+    --color-surface: #101214;
+    --color-surface-2: #17191c;
+    --color-line: #262a2e;
+    --color-ink: #e7ece9;
+    --color-ink-strong: #f6f9f7;
+    --color-ink-muted: #9aa3a0;
+    --color-ink-faint: #6b746f;
+    --color-accent: #2fe3a3;
+    --color-accent-fg: #03130d;
+
+    /* Pure white in dark mode, matching the light-mode rationale above. */
+    --image-outline: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* The agent palette above only tracked `prefers-color-scheme`, so anything in
+   the `(app)` shell that reads it (the /kb chat panel, skeletons, markdown
+   citation chips) stayed on the OS preference while the shell itself followed
+   the `data-theme` toggle: an OS-dark reader who picked Light got black chips
+   on a cream page. These blocks come LAST, mirroring design-tokens.css, so an
+   explicit choice wins in both directions. `/embed` mounts outside the shell's
+   ThemeProvider and carries no `data-theme`, so it still follows the OS. */
+:root[data-theme="light"] {
+  --background: #ffffff;
+  --foreground: #171717;
+
+  --color-surface: #ffffff;
+  --color-surface-2: #f4f5f6;
+  --color-line: #e2e4e7;
+  --color-ink: #1f2328;
+  --color-ink-strong: #0d1013;
+  --color-ink-muted: #5b6570;
+  --color-ink-faint: #8b939c;
+  --color-accent: #0f8a5f;
+  --color-accent-fg: #f4fbf8;
+
+  --image-outline: rgba(0, 0, 0, 0.1);
+}
+
+:root[data-theme="dark"] {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+
+  --color-surface: #101214;
+  --color-surface-2: #17191c;
+  --color-line: #262a2e;
+  --color-ink: #e7ece9;
+  --color-ink-strong: #f6f9f7;
+  --color-ink-muted: #9aa3a0;
+  --color-ink-faint: #6b746f;
+  --color-accent: #2fe3a3;
+  --color-accent-fg: #03130d;
+
+  --image-outline: rgba(255, 255, 255, 0.1);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, sans-serif;
+  /* Crisper text weight on macOS retina displays. Deliberately no
+     `text-rendering: optimizeLegibility` — it forces kerning/ligature work
+     across the long markdown documents this portal renders. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle, once-per-mount entrance — softer than a full slide, per the
+   "subtle exits / staged one-shot keyframes" guidance. Used by chat turns
+   (components/agent/agent-chat.tsx) and the permission modal panel. */
+@keyframes message-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.message-in {
+  animation: message-in 0.24s cubic-bezier(0.2, 0, 0, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .message-in {
+    animation: none;
+  }
+}
+
+/* Cross-fading icon swap (components/agent/composer.tsx's send↔stop toggle).
+   Both icons stay mounted and absolutely stacked; toggling the class animates
+   opacity/scale/blur rather than yanking one out of the DOM. Interruptible,
+   because it's a transition rather than a keyframe — hammer the button
+   mid-swap and it reverses from wherever it got to. */
+.icon-swap {
+  position: absolute;
+  transition-property: opacity, transform, filter;
+  transition-duration: 0.3s;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+.icon-swap-in {
+  opacity: 1;
+  transform: scale(1);
+  filter: blur(0px);
+}
+.icon-swap-out {
+  opacity: 0;
+  transform: scale(0.25);
+  filter: blur(4px);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .icon-swap {
+    transition-duration: 0.01ms;
+  }
+}
+
+/* thin, unobtrusive scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 8px;
+}
+
+/* Markdown prose styling (`.md`, including `.md .portal-selection-highlight`)
+   lives in ./markdown.css, imported at the top of this file. */
+
+/* Document annotations (spec 2026-07-22): comment + suggestion range highlights. */
+::highlight(doc-comment) {
+  background-color: color-mix(in srgb, #f5c518 35%, transparent);
+}
+::highlight(doc-suggestion) {
+  background-color: color-mix(in srgb, #34c759 28%, transparent);
+  text-decoration: underline;
+  text-decoration-color: #34c759;
+}

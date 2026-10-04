@@ -1,0 +1,11 @@
+node_modules
+.next
+tests
+playwright.config.ts
+.env
+# Local dev's SQLite thread-ownership DB (lib/db/client.ts's default dbPath()
+# under ./.data). Never bake a developer's local runtime state into the image
+# — real deploys always set PORTAL_DB_PATH to the PVC path (/data/portal.db),
+# which lives outside the build context entirely. Without this, `COPY . .`
+# picks up whatever happens to be at ./.data on the host at build time.
+.data

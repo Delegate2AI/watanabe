@@ -1,0 +1,172 @@
+/* ===========================================================================
+   Spec 18 design system: token layer ported from design/ui-mock.html.
+   Imported first by globals.css so the raw custom properties exist before the
+   `@theme inline` mappings reference them.
+
+   Order matters: `:root` defines the light default, `@media
+   (prefers-color-scheme: dark)` supplies the system-dark values, and the
+   `:root[data-theme="..."]` blocks come LAST so an explicit theme choice
+   (written to <html data-theme> by next-themes) overrides the media query in
+   BOTH directions. Do not reorder these blocks.
+
+   These `--surface`/`--ink`/`--accent`/... names are independent of the agent
+   chat's prefixed `--color-*` set (in globals.css). The shell reads these; the
+   /embed chat reads those. See globals.token.test.ts.
+   ========================================================================= */
+:root {
+  --sidebar: #efede6;
+  --surface-hover: #e9e6dd;
+  --line-soft: #efebe2;
+  --accent-ink: #b0512f;
+  --accent-soft: #f5e6dd;
+  --good: #4f7a5b;
+  --good-soft: #e4ede3;
+  --warn: #9a6b1e;
+  --warn-soft: #f1e7d2;
+  --shadow: 0 1px 2px rgba(43, 40, 35, 0.06), 0 8px 24px rgba(43, 40, 35, 0.06);
+  --shadow-card: 0 1px 3px rgba(43, 40, 35, 0.05);
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
+    Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+
+  /* Radius scale (theme-independent), all values sourced from
+     design/ui-mock.html so components never carry arbitrary radii. Named by the
+     role each step plays in the mock. Pills use `rounded-full`. */
+  --radius-tab: 6px; /* segmented control / tab trigger */
+  --radius-icon: 7px; /* icon buttons, menu items */
+  --radius-control: 8px; /* default control (nav item, input) */
+  --radius-send: 9px; /* send button */
+  --radius-menu: 10px; /* new-chat button, dropdown / popover surface */
+  --radius-chip: 11px; /* home starter chips, doc card */
+  --radius-card: 13px; /* content cards */
+  --radius-composer: 18px; /* the composer */
+
+  --bg: #faf9f6;
+  --surface: #ffffff;
+  --surface-2: #f4f2eb;
+  --ink: #2a2723;
+  --ink-muted: #6e675b;
+  --ink-faint: #a29a8c;
+  --line: #e7e2d8;
+  --accent: #c96442;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #262624;
+    --sidebar: #1e1d1b;
+    --surface: #302e2b;
+    --surface-2: #2b2926;
+    --surface-hover: #35322e;
+    --ink: #ece8e0;
+    --ink-muted: #a69e90;
+    --ink-faint: #746d61;
+    --line: #3a3733;
+    --line-soft: #322f2b;
+    --accent: #d97757;
+    --accent-ink: #e08a6b;
+    --accent-soft: #3a2c24;
+    --good: #83ac8d;
+    --good-soft: #2a322a;
+    --warn: #d6a94e;
+    --warn-soft: #352c1c;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 8px 24px rgba(0, 0, 0, 0.28);
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+}
+
+:root[data-theme="light"] {
+  --bg: #faf9f6;
+  --sidebar: #efede6;
+  --surface: #ffffff;
+  --surface-2: #f4f2eb;
+  --surface-hover: #e9e6dd;
+  --ink: #2a2723;
+  --ink-muted: #6e675b;
+  --ink-faint: #a29a8c;
+  --line: #e7e2d8;
+  --line-soft: #efebe2;
+  --accent: #c96442;
+  --accent-ink: #b0512f;
+  --accent-soft: #f5e6dd;
+  --good: #4f7a5b;
+  --good-soft: #e4ede3;
+  --warn: #9a6b1e;
+  --warn-soft: #f1e7d2;
+  --shadow: 0 1px 2px rgba(43, 40, 35, 0.06), 0 8px 24px rgba(43, 40, 35, 0.06);
+  --shadow-card: 0 1px 3px rgba(43, 40, 35, 0.05);
+}
+
+:root[data-theme="dark"] {
+  --bg: #262624;
+  --sidebar: #1e1d1b;
+  --surface: #302e2b;
+  --surface-2: #2b2926;
+  --surface-hover: #35322e;
+  --ink: #ece8e0;
+  --ink-muted: #a69e90;
+  --ink-faint: #746d61;
+  --line: #3a3733;
+  --line-soft: #322f2b;
+  --accent: #d97757;
+  --accent-ink: #e08a6b;
+  --accent-soft: #3a2c24;
+  --good: #83ac8d;
+  --good-soft: #2a322a;
+  --warn: #d6a94e;
+  --warn-soft: #352c1c;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 8px 24px rgba(0, 0, 0, 0.28);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Shell base primitives (scoped, so they never touch the agent/embed UI). The
+   inline SVG icon convention from the mock: 1em stroked line icons. */
+.ic {
+  width: 1em;
+  height: 1em;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  display: block;
+  flex: none;
+}
+
+/* Visible focus ring in the accent color, per spec 18 accessibility. Scoped to
+   the app shell so it does not restyle the legacy routes' focus behavior. */
+.app-shell :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Radix primitives (Sheet, Dialog, DropdownMenu, Tooltip) portal their content
+   under <body>, OUTSIDE `.app-shell`, so the ring above never reaches them. The
+   mobile drawer's links and the dialog/menu close buttons would otherwise focus
+   with no visible ring. Give portaled interactive content the same accent ring.
+   Every one of these primitives tags its portaled root with a `data-slot`. */
+[data-slot="sheet-content"] :focus-visible,
+[data-slot="dialog-content"] :focus-visible,
+[data-slot="dropdown-menu-content"] :focus-visible,
+[data-slot="tooltip-content"] :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Honor prefers-reduced-motion across the shell AND the portaled primitives
+   (all Radix content carries a `data-slot`), per spec 18's reduced-motion
+   requirement. The legacy globals.css only covered .message-in / .icon-swap.
+   Near-zero durations rather than `none` so state changes still settle. */
+@media (prefers-reduced-motion: reduce) {
+  .app-shell *,
+  [data-slot],
+  [data-slot] * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

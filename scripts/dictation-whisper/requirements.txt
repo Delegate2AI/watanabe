@@ -1,0 +1,4 @@
+# Local speech-to-text backend for voice dictation.
+# faster-whisper pulls ctranslate2, av (PyAV), tokenizers, onnxruntime, and
+# huggingface-hub. CPU int8 is plenty for short dictation clips.
+faster-whisper>=1.0.0

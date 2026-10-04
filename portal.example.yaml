@@ -1,0 +1,198 @@
+# portal.yaml, by example.
+#
+# This file is NOT loaded. Copy it to ./portal.yaml, or point PORTAL_CONFIG at
+# it, to use it. With no config file at all the portal behaves exactly as it
+# always has: proxy-header auth, the neutral Watanabe branding, and the repo path taken
+# from LOCAL_REPO_PATH / VAULT_SUBDIR.
+#
+# Precedence, lowest to highest:
+#   1. built-in defaults
+#   2. portal.yaml
+#   3. environment variables
+#
+# Environment wins so a deployment-level override still beats a config
+# file baked into the image.
+#
+# Any value may be written ${VAR} and is resolved from the environment at load.
+# A ${VAR} that is unset (or empty) is a boot error naming the field and the
+# variable. Write $${VAR} for a literal "${VAR}".
+
+repo:
+  # The knowledge-base checkout. Equivalent to LOCAL_REPO_PATH, and it inherits
+  # that variable's rule: a local path is honored ONLY when REPO_READ_TOKEN is
+  # unset. With a read token present, the managed checkout wins regardless, so a
+  # config file cannot accidentally disable clone-on-boot in a real deploy.
+  path: ${LOCAL_REPO_PATH}
+
+  # The markdown vault inside that checkout. "." or "" means the repo root IS
+  # the vault. Equivalent to VAULT_SUBDIR.
+  vaultSubdir: docs
+
+app:
+  name: "Watanabe"
+  tagline: "Your team's knowledge workspace"
+  navLabel: "Knowledge base"
+
+  # Names the knowledge base in the agent's system prompt and in the sign-in
+  # walls. Reads best as a noun phrase beginning with "the".
+  kbDescription: "the team knowledge base"
+
+  # The textarea placeholder in the chat composer.
+  composerPlaceholder: "Ask anything about your knowledge base..."
+
+  # Where the help dialog's "Send feedback" link points. A mailto: address or an
+  # http(s) URL for a form; anything else is a boot error.
+  #
+  # Deliberately has NO default. Leave it out and the link is not rendered at
+  # all, which is the honest reading of "this deployment has no feedback
+  # channel". The alternative shipped for a while: a hardcoded placeholder
+  # address that looked exactly like a working channel and went nowhere.
+  # feedbackUrl: "mailto:portal-feedback@example.com"
+
+  # Empty-state cards. Clicking one PREFILLS the composer; it does not send.
+  # `icon` must name an allowlisted lucide icon (see lib/config/icons.ts):
+  #   BookOpen, Coins, Layers, GitBranch, Gauge, Scale, Map, Shield
+  # An unknown name is a boot error, never a blank card.
+  # An empty list is valid: a portal with no starter cards.
+  starters:
+    - id: whats-in-the-kb
+      label: "What's in the knowledge base?"
+      sub: "Overview"
+      icon: BookOpen
+      prompt: >-
+        What's in the knowledge base? Give me the short version, grounded in
+        docs/.
+
+    - id: find-a-decision
+      label: "Find a decision"
+      sub: "Why we chose what we chose"
+      icon: Scale
+      prompt: "Find the decision recorded in the knowledge base about "
+
+agent:
+  # Editorial rules the assistant applies every time they are relevant. Each
+  # entry is one bullet in the system prompt. Empty (the default) omits the
+  # block and every later reference to it.
+  houseRules: []
+  # houseRules:
+  #   - "Always write the product name in full."
+  #   - "Never promise delivery dates."
+  # houseRulesSummary: "product name, delivery dates"
+  # subjectName: "Acme"
+  # Rules written into the memory worktree's CLAUDE.md, and a one-line summary the
+  # memory consolidation prompt repeats. Empty omits the section.
+  # memoryRules:
+  #   - "Always write the product name in full."
+  # memoryRulesSummary: "product name"
+
+git:
+  # The git host is chosen by the GIT_HOST environment variable: "github" or
+  # "gitlab". Unset, a github.com REPO_URL selects GitHub and anything else
+  # selects GitLab. GitHub Enterprise needs GIT_HOST=github.
+  #
+  # Identities used for unattended commits. The bot address is also what the
+  # authority layer treats as the implicit admin, so changing it on a live
+  # deployment changes who counts as the bot.
+  botName: "Watanabe Portal Bot"
+  botEmail: "portal-bot@watanabe.local"
+  memoryEmail: "portal-memory@watanabe.local"
+
+embed:
+  # Origins allowed to frame /embed (CSP frame-ancestors). Read at build time.
+  frameAncestors: "'self' http://localhost:*"
+
+auth:
+  # One of: proxy-header (default) | jwt | none
+  # Only the block named here is validated. The others may stay in the file, so
+  # flipping the mode is a one-line change.
+  mode: proxy-header
+
+  # ---------------------------------------------------------------------------
+  # proxy-header: an oauth2-proxy in front of the app injects the identity.
+  #
+  # The app's k8s Service is ClusterIP, so any in-cluster pod could reach it
+  # directly and forge X-Auth-Request-Email. assertSecret closes that: the
+  # ingress injects assertHeader with this value, and the headers are trusted
+  # only on a constant-time match.
+  #
+  # Leaving assertSecret unset trusts the headers unverified and logs a warning
+  # once per process. That is the pre-rollout posture, not a target state.
+  # ---------------------------------------------------------------------------
+  proxyHeader:
+    emailHeader: X-Auth-Request-Email
+    userHeader: X-Auth-Request-User
+    assertHeader: X-Portal-Proxy-Assert
+    assertSecret: ${PORTAL_PROXY_ASSERT_SECRET}
+
+  # ---------------------------------------------------------------------------
+  # jwt: the portal verifies a signed token itself.
+  #
+  # RS256 requires jwksUrl and forbids secret. HS256 requires secret and forbids
+  # jwksUrl. A secret sitting next to RS256 looks configured but is never read,
+  # so rotating it would silently do nothing; the schema rejects it.
+  #
+  # The algorithm is pinned during verification. Without that pin an attacker
+  # could take the PUBLIC key from the JWKS, use it as an HMAC secret to sign an
+  # HS256 token, and a verifier that trusted the token's own `alg` would accept.
+  # ---------------------------------------------------------------------------
+  # jwt:
+  #   algorithm: RS256
+  #   jwksUrl: https://idp.example.com/.well-known/jwks.json
+  #   issuer: https://idp.example.com
+  #   audience: watanabe
+  #   source: cookie          # cookie | bearer
+  #   cookieName: portal_session
+  #   emailClaim: email
+  #   nameClaim: name
+  #
+  # HS256 variant:
+  #   algorithm: HS256
+  #   secret: ${PORTAL_JWT_SECRET}
+  #   issuer: https://idp.example.com
+  #   audience: watanabe
+
+  # ---------------------------------------------------------------------------
+  # none: NO AUTHENTICATION. Every request is the identity below.
+  #
+  # This alone is not enough. The process ALSO requires PORTAL_ALLOW_NO_AUTH=1
+  # in its environment, or it refuses to start. Config on its own must not be
+  # able to disarm authentication, so a portal.yaml that leaks into a production
+  # image is inert. With KB_WRITE_ENABLED=1 this would also make the knowledge
+  # base writable by anyone who can reach the pod.
+  # ---------------------------------------------------------------------------
+  # none:
+  #   email: dev@example.com
+  #   name: Local Developer
+
+# =============================================================================
+# skills: installable Agent Skills
+# =============================================================================
+# OPTIONAL. Leave the block out entirely and the Marketplace tab offers the
+# index that ships with the app: Anthropic's own skills repository, restricted
+# to the twelve skills there that are Apache 2.0. The four source-available
+# document skills (docx, pdf, pptx, xlsx) are deliberately NOT in it, because
+# their licence forbids retaining copies outside Anthropic's services and
+# installing retains one here. Install those by url on the Git tab if your
+# agreement permits it.
+#
+# `builtinMarketplace: false` drops that index, for a workspace that wants only
+# its own curated ones. With it off and nothing configured, the tab says so.
+# Installing from a git remote or a zip upload does not need anything here.
+#
+# Each entry is the URL of a JSON index document listing installable skills:
+#
+#   { "skills": [ { "name": "...", "description": "...",
+#                   "url": "https://...git", "ref": "main", "subdir": "..." } ] }
+#
+# http(s) only, enforced at boot. The index is remote, untrusted JSON: it is
+# size-capped, entry-capped, and validated one entry at a time, and an entry's
+# `url` is held to http(s) as well, so an index can never name a repository
+# that is local to the server.
+#
+# This whole subsystem is dormant unless SKILLS_ENABLED=1. A skills block here
+# with the flag off configures nothing.
+# -----------------------------------------------------------------------------
+# skills:
+#   marketplaces:
+#     - https://skills.example.com/index.json
+#   builtinMarketplace: true

@@ -1,0 +1,5 @@
+roles:
+  admin: []
+  approver: []
+  editor: []
+default: viewer

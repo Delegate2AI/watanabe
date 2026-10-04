@@ -1,0 +1,91 @@
+/* ============================================================================
+   Obsidian callouts (lib/markdown/callouts.ts). Imported by globals.css after
+   markdown.css, and scoped under `.md` for the same reason everything in that
+   file is: one rule set serves the client <Markdown> and the server KB renderer.
+
+   Split out of markdown.css only because that file is already past the repo's
+   file-size threshold; these rules belong to the same stylesheet in spirit and
+   follow its doctrine exactly. Color flows through the semantic --prose-*
+   variables, so callouts theme in the terracotta shell palette and the green
+   agent-chat palette alike, in light and dark, with no rules of their own.
+
+   Tone is one variable. Each family sets --callout-tone and --callout-ink; the
+   background and the border are mixed from the tone, so the neutral default
+   (tone = the ordinary prose line color) lands on the plain surface without
+   needing a second set of rules. No new design token: `danger` shares the amber
+   --warn, a known compromise, taken over introducing a red into the design
+   system as a side effect of a renderer fix.
+   ============================================================================ */
+.md .callout {
+  --callout-tone: var(--prose-line);
+  --callout-ink: var(--prose-strong);
+
+  display: block;
+  margin: 1em 0;
+  padding: 0.75em 1em;
+  border: 1px solid color-mix(in srgb, var(--callout-tone) 40%, var(--prose-line));
+  border-left-width: 3px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--callout-tone) 8%, var(--prose-surface));
+  color: var(--prose-ink);
+}
+
+/* Callouts nested inside a callout body sit tighter than top-level ones. */
+.md .callout-body > .callout:first-child {
+  margin-top: 0;
+}
+.md .callout-body > .callout:last-child {
+  margin-bottom: 0;
+}
+
+.md .callout-title {
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--callout-ink);
+}
+/* A foldable callout's title is a <summary>: it needs the affordance the
+   browser gives it, and the disclosure marker is kept rather than replaced. */
+.md details.callout > summary.callout-title {
+  cursor: pointer;
+}
+.md .callout-title + .callout-body {
+  margin-top: 0.45em;
+}
+/* The body's own first/last block must not add margin inside the box, mirroring
+   the `.md > :first-child` reset in markdown.css. */
+.md .callout-body > :first-child {
+  margin-top: 0;
+}
+.md .callout-body > :last-child {
+  margin-bottom: 0;
+}
+
+/* `note`, `info`, `tip`, `hint`, `important`: the surface accent. */
+.md .callout[data-callout="note"],
+.md .callout[data-callout="info"],
+.md .callout[data-callout="tip"],
+.md .callout[data-callout="hint"],
+.md .callout[data-callout="important"] {
+  --callout-tone: var(--prose-accent);
+  --callout-ink: var(--prose-accent);
+}
+
+/* `success`, `check`, `done`. */
+.md .callout[data-callout="success"],
+.md .callout[data-callout="check"],
+.md .callout[data-callout="done"] {
+  --callout-tone: var(--good);
+  --callout-ink: var(--good);
+}
+
+/* `warning` and everything sharper than it, including `danger` and `error`. */
+.md .callout[data-callout="warning"],
+.md .callout[data-callout="caution"],
+.md .callout[data-callout="attention"],
+.md .callout[data-callout="danger"],
+.md .callout[data-callout="error"],
+.md .callout[data-callout="failure"],
+.md .callout[data-callout="bug"] {
+  --callout-tone: var(--warn);
+  --callout-ink: var(--warn);
+}
