@@ -50,4 +50,21 @@ describe("job CLI", () => {
     await expect(runCli(["meetings-poll"], { db, output: vi.fn(), error })).resolves.toBe(1);
     expect(error).toHaveBeenCalledWith("job disabled by MEETINGS_ENABLED: meetings-poll");
   });
+
+  it.each([
+    ["reconcile", "AUTHORITY_ENABLED"],
+    ["meetings-retry-failed", "MEETINGS_ENABLED"],
+  ])("resolves the built-in job %s without prior registration", async (name, flag) => {
+    delete process.env[flag];
+    const error = vi.fn();
+    await expect(runCli([name], { db, output: vi.fn(), error })).resolves.toBe(1);
+    expect(error).toHaveBeenCalledWith(`job disabled by ${flag}: ${name}`);
+  });
+
+  it("can resolve built-in jobs repeatedly without throwing", async () => {
+    const error = vi.fn();
+    await runCli(["reconcile"], { db, output: vi.fn(), error });
+    await expect(runCli(["reconcile"], { db, output: vi.fn(), error })).resolves.toBe(1);
+    expect(error).not.toHaveBeenCalledWith("unknown job: reconcile");
+  });
 });

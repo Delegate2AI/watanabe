@@ -217,10 +217,10 @@ If the host cannot be listed at all the route answers `review_unavailable` (HTTP
 
 ### Approve, reject
 
-`POST /api/review/<iid>` with `{"action":"approve"}` or `{"action":"reject"}`. Every gate is re-derived on the server: flag, `approve` capability, a configured write token, and the proposal's own clearance (a missing proposal and an uncleared one both answer `not_cleared`, so the queue is not an oracle). Before deciding, the app refreshes the checkout so clearance is judged on current content.
+`POST /api/review/<iid>` with `{"action":"approve","sha":"<head sha shown>"}` or `{"action":"reject"}`. Every gate is re-derived on the server: flag, `approve` capability, a configured write token, and the proposal's own clearance (a missing proposal and an uncleared one both answer `not_cleared`, so the queue is not an oracle). Before deciding, the app refreshes the checkout so clearance is judged on current content.
 
 - **Reject** closes the change request. On GitHub the head branch is then deleted on a best-effort basis.
-- **Approve** reloads the proposal when the decision request arrives and merges with the `sha` of that reload (the request carries only the action), so the host refuses the merge if the branch moved after that reload. A push made after the reviewer loaded the queue but before the decision request is merged without that push being pinned. On GitLab the merge asks the host to remove the source branch. A refusal returns `conflict` (HTTP 409) and the host's reason is written to the log only.
+- **Approve** requires the `sha` of the head commit the reviewer was shown (a missing `sha` is HTTP 400). If the branch head no longer matches it, the app answers `conflict` (HTTP 409) with detail `stale_head` and merges nothing. Otherwise it merges with the reviewer's `sha`, so the host also refuses the merge if the branch moves in between. Reject does not need a `sha`. On GitLab the merge asks the host to remove the source branch. A refusal returns `conflict` (HTTP 409) and the host's reason is written to the log only.
 
 After a merge the app refreshes the checkout, rebuilds the index, clears the graph cache and reconciles artifacts waiting on review. Every decision is appended to an audit table naming the deciding person, because the host attributes the merge to the token's owner. Approving one's own proposal is recorded with a `selfApproval` flag but is not blocked by the app. If your policy forbids it, enforce it with branch protection on the host.
 

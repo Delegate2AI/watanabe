@@ -87,6 +87,7 @@ function proposal(over: Partial<Proposal> = {}): Proposal {
     createdAt: "2026-08-18T10:00:00Z",
     webUrl: "https://gl/mr/7",
     sourceBranch: "kb/alice/add-7",
+    sha: "abc123",
     paths: ["docs/a.md"],
     changes: [],
     origin: "artifact",
@@ -126,20 +127,20 @@ afterEach(() => {
 describe("POST /api/review/[iid] gates", () => {
   it("404s when the flag is off", async () => {
     isKbReviewEnabledMock.mockReturnValue(false);
-    const res = await POST(...post({ action: "approve" }));
+    const res = await POST(...post({ action: "approve", sha: "abc123" }));
     expect(res.status).toBe(404);
     expect(order).toEqual([]);
   });
 
   it("hands back the identity refusal when there is no identity", async () => {
     requireIdentityMock.mockResolvedValue({ response: Response.json({ error: "x" }, { status: 401 }) });
-    expect((await POST(...post({ action: "approve" }))).status).toBe(401);
+    expect((await POST(...post({ action: "approve", sha: "abc123" }))).status).toBe(401);
     expect(order).toEqual([]);
   });
 
   it("403s needs_role for someone without approve", async () => {
     canMock.mockReturnValue(false);
-    const res = await POST(...post({ action: "approve" }));
+    const res = await POST(...post({ action: "approve", sha: "abc123" }));
     expect(res.status).toBe(403);
     expect(await res.json()).toEqual({ error: { code: "needs_role" } });
     expect(canMock).toHaveBeenCalledWith(ALICE.email, "approve");
@@ -147,7 +148,7 @@ describe("POST /api/review/[iid] gates", () => {
   });
 
   it("400s an iid that is not a positive integer", async () => {
-    const res = await POST(...post({ action: "approve" }, "abc"));
+    const res = await POST(...post({ action: "approve", sha: "abc123" }, "abc"));
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: { code: "invalid_request", detail: "iid" } });
   });
@@ -168,7 +169,7 @@ describe("POST /api/review/[iid] gates", () => {
 
   it("503s write_unavailable with no write token configured", async () => {
     delete process.env.REPO_WRITE_TOKEN;
-    const res = await POST(...post({ action: "approve" }));
+    const res = await POST(...post({ action: "approve", sha: "abc123" }));
     expect(res.status).toBe(503);
     expect(await res.json()).toEqual({ error: { code: "write_unavailable" } });
     expect(order).toEqual([]);
@@ -176,7 +177,7 @@ describe("POST /api/review/[iid] gates", () => {
 
   it("403s not_cleared for an iid outside the requester's clearance", async () => {
     loadProposalMock.mockResolvedValue(null);
-    const res = await POST(...post({ action: "approve" }));
+    const res = await POST(...post({ action: "approve", sha: "abc123" }));
     expect(res.status).toBe(403);
     expect(await res.json()).toEqual({ error: { code: "not_cleared" } });
     // The pre-authorization refresh is all that ran: nothing was merged or closed.
@@ -185,15 +186,15 @@ describe("POST /api/review/[iid] gates", () => {
 
   it("answers an unknown iid with the identical refusal, so the queue is not an existence oracle", async () => {
     loadProposalMock.mockResolvedValue(null);
-    const cleared = await POST(...post({ action: "approve" }, "7"));
-    const unknown = await POST(...post({ action: "approve" }, "999"));
+    const cleared = await POST(...post({ action: "approve", sha: "abc123" }, "7"));
+    const unknown = await POST(...post({ action: "approve", sha: "abc123" }, "999"));
     expect(unknown.status).toBe(cleared.status);
     expect(await unknown.json()).toEqual(await cleared.json());
   });
 
   it("502s review_unavailable when the queue cannot be read", async () => {
     loadProposalMock.mockRejectedValue(new Error("unreachable"));
-    const res = await POST(...post({ action: "approve" }));
+    const res = await POST(...post({ action: "approve", sha: "abc123" }));
     expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ error: { code: "review_unavailable" } });
     expect(order).toEqual(["refreshRepo"]);
@@ -202,17 +203,17 @@ describe("POST /api/review/[iid] gates", () => {
 
 describe("POST /api/review/[iid] approve", () => {
   it("merges, then refreshes the repo, index and graph cache in that order", async () => {
-    const res = await POST(...post({ action: "approve" }));
+    const res = await POST(...post({ action: "approve", sha: "abc123" }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
     expect(order).toEqual(["refreshRepo", "merge", "refreshRepo", "rebuildIndex", "clearKbGraphCache", "reconcile"]);
-    expect(mergeMergeRequestMock).toHaveBeenCalledWith({ iid: 7, token: "tok" });
+    expect(mergeMergeRequestMock).toHaveBeenCalledWith({ iid: 7, token: "tok", sha: "abc123" });
     expect(reconcileMock).toHaveBeenCalledWith(db);
   });
 
   it("skips the index rebuild when the index is off", async () => {
     isIndexEnabledMock.mockReturnValue(false);
-    await POST(...post({ action: "approve" }));
+    await POST(...post({ action: "approve", sha: "abc123" }));
     expect(order).toEqual(["refreshRepo", "merge", "refreshRepo", "clearKbGraphCache", "reconcile"]);
   });
 
@@ -220,7 +221,7 @@ describe("POST /api/review/[iid] approve", () => {
     const warn = vi.spyOn(console, "error").mockImplementation(() => {});
     mergeMergeRequestMock.mockResolvedValue({ ok: false, status: 405, reason: "Branch cannot be merged" });
 
-    const res = await POST(...post({ action: "approve" }));
+    const res = await POST(...post({ action: "approve", sha: "abc123" }));
 
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: { code: "conflict", detail: "merge_refused" } });
@@ -231,7 +232,7 @@ describe("POST /api/review/[iid] approve", () => {
   });
 
   it("records the decision against the changed paths", async () => {
-    await POST(...post({ action: "approve" }));
+    await POST(...post({ action: "approve", sha: "abc123" }));
     expect(listDecisions(db, 7)).toEqual([
       expect.objectContaining({
         iid: 7,
@@ -245,19 +246,19 @@ describe("POST /api/review/[iid] approve", () => {
 
   it("flags a self-approval when the actor is the proposer, alias-aware on the email", async () => {
     loadProposalMock.mockResolvedValue(proposal({ proposer: "Alice@Example.com" }));
-    await POST(...post({ action: "approve" }));
+    await POST(...post({ action: "approve", sha: "abc123" }));
     expect(listDecisions(db, 7)[0]).toMatchObject({ selfApproval: true });
   });
 
   it("flags a self-approval when a chat proposal names the actor, case-insensitively", async () => {
     loadProposalMock.mockResolvedValue(proposal({ proposer: "alice doe", origin: "chat" }));
-    await POST(...post({ action: "approve" }));
+    await POST(...post({ action: "approve", sha: "abc123" }));
     expect(listDecisions(db, 7)[0]).toMatchObject({ selfApproval: true });
   });
 
   it("does not flag a self-approval when a chat proposal names someone else", async () => {
     loadProposalMock.mockResolvedValue(proposal({ proposer: "Portal Bot", origin: "chat" }));
-    await POST(...post({ action: "approve" }));
+    await POST(...post({ action: "approve", sha: "abc123" }));
     expect(listDecisions(db, 7)[0]).toMatchObject({ selfApproval: false });
   });
 });

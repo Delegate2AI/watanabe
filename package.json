@@ -12,7 +12,7 @@
     "dev": "next dev -p 3100",
     "build": "next build",
     "start": "next start -p 3100",
-    "job": "tsx scripts/job.ts",
+    "job": "tsx --conditions=react-server scripts/job.ts",
     "lint": "eslint",
     "test": "vitest run"
   },

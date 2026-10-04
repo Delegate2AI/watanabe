@@ -177,7 +177,7 @@ Jobs registered in this tree:
 
 Run a scheduler of your choice (a Kubernetes CronJob, a systemd timer, or your orchestrator's equivalent) that calls the endpoint with the header above. Jobs run asynchronously: the endpoint returns once the job is queued. Run state is recorded in the database, and a run left `processing` by a crashed process is recovered at boot.
 
-`pnpm job <name>` runs a job in the foreground and exits `0` on success, `1` on failure, unknown name, or disabled flag. It executes `scripts/job.ts` with `tsx` from the source tree. That process does not run the server's startup job registration, so it resolves only `meetings-poll`; `repo-refresh`, `reconcile` and `meetings-retry-failed` are registered by the server at startup and run through the HTTP endpoint. The runtime image contains the standalone server output, and this document does not rely on `pnpm` or `tsx` being available there. Use the HTTP endpoint in production.
+`pnpm job <name>` runs a job in the foreground and exits `0` on success, `1` on failure, unknown name, or disabled flag. It executes `scripts/job.ts` with `tsx` from the source tree. The CLI registers the built-in jobs itself, so `repo-refresh`, `reconcile`, `meetings-retry-failed` and `meetings-poll` all resolve from it. The runtime image contains the standalone server output, and this document does not rely on `pnpm` or `tsx` being available there. Use the HTTP endpoint in production.
 
 ## Sidecars
 

@@ -145,7 +145,7 @@ function commitSubject(change: AccessChange): string {
   return `chore(access): delete group ${group}`;
 }
 
-function accessYaml(state: AccessState): { groups: string; roles: string; flags: string } {
+function accessYaml(state: AccessState): AccessYaml {
   const roles = Object.fromEntries(
     ROLE_NAMES.flatMap((role) => state.roles[role]?.length ? [[role, state.roles[role]]] : []),
   );
@@ -163,10 +163,7 @@ function validBootstrapAdmins(): string[] {
     .filter((email) => emailSchema.safeParse(email).success);
 }
 
-function reparses(
-  state: AccessState,
-  yaml: { groups: string; roles: string; flags: string },
-): boolean {
+function reparses(state: AccessState, yaml: AccessYaml): boolean {
   const root = mkdtempSync(path.join(os.tmpdir(), "access-validate-"));
   try {
     const accessDir = path.join(root, "access");
@@ -178,6 +175,19 @@ function reparses(
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+}
+
+type AccessYaml = { groups: string; roles: string; flags: string };
+
+function planChange(root: string, change: AccessChange): { yaml: AccessYaml } | { error: string } {
+  invalidateRolesCache();
+  const next = applyChange(loadAccess(root), change);
+  if ((next.roles.admin ?? []).length === 0 && validBootstrapAdmins().length === 0) {
+    return { error: "at least one admin is required" };
+  }
+  const yaml = accessYaml(next);
+  if (!reparses(next, yaml)) return { error: "access configuration failed validation" };
+  return { yaml };
 }
 
 function markdownFiles(root: string): string[] {
@@ -236,24 +246,25 @@ export async function writeAccess(
     return { ok: false, error: "valid email is required" };
   }
 
-  const next = applyChange(loadAccess(root), change);
-  if ((next.roles.admin ?? []).length === 0 && validBootstrapAdmins().length === 0) {
-    return { ok: false, error: "at least one admin is required" };
-  }
-  const yaml = accessYaml(next);
-  if (!reparses(next, yaml)) return { ok: false, error: "access configuration failed validation" };
+  const local = planChange(root, change);
+  if ("error" in local) return { ok: false, error: local.error };
+  let yaml = local.yaml;
 
   const warnings: string[] = [];
   if (change.verb === "deleteGroup") {
     const count = groupReferenceCount(options.vaultRoot ?? unfilteredVaultRoot(), change.group.trim());
     if (count > 0) warnings.push(`Group ${change.group.trim()} is referenced by ${count} ${count === 1 ? "note" : "notes"}.`);
   }
-  const files = {
-    "access/groups.yaml": yaml.groups,
-    "access/roles.yaml": yaml.roles,
-    "access/flags.yaml": yaml.flags,
-  };
-  const committed = await commitPrivateAccess(files, {
+  const committed = await commitPrivateAccess(() => {
+    const rebased = planChange(root, change);
+    if ("error" in rebased) return rebased;
+    yaml = rebased.yaml;
+    return {
+      "access/groups.yaml": yaml.groups,
+      "access/roles.yaml": yaml.roles,
+      "access/flags.yaml": yaml.flags,
+    };
+  }, {
     authorName: normalizedEmail(actorEmail),
     authorEmail: normalizedEmail(actorEmail),
     message: commitSubject(change),

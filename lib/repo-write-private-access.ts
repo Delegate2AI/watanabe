@@ -47,16 +47,27 @@ export interface PrivateAccessCommitOptions {
 
 export type PrivateAccessCommitResult = { ok: true } | { ok: false; error: string };
 
+export type PrivateAccessMutation = () => PrivateAccessFiles | { error: string };
+
+function allowedEntries(files: PrivateAccessFiles): Array<[string, string]> | null {
+  const entries = Object.entries(files);
+  if (entries.length === 0 || entries.some(([relative]) => !PRIVATE_ACCESS_PATHS.has(relative))) return null;
+  return entries as Array<[string, string]>;
+}
+
+function isRefusal(value: PrivateAccessFiles | { error: string }): value is { error: string } {
+  return typeof (value as { error?: unknown }).error === "string";
+}
+
 export async function commitPrivateAccess(
-  files: PrivateAccessFiles,
+  filesOrMutation: PrivateAccessFiles | PrivateAccessMutation,
   options: PrivateAccessCommitOptions,
 ): Promise<PrivateAccessCommitResult> {
   if (!can(options.authorEmail, "manageAccess")) return { ok: false, error: "forbidden" };
   const attributed = options.onBehalfOf ?? { name: options.authorName, email: options.authorEmail };
-  const entries = Object.entries(files);
-  if (entries.length === 0 || entries.some(([relative]) => !PRIVATE_ACCESS_PATHS.has(relative))) {
-    return { ok: false, error: "invalid private access path" };
-  }
+  const mutation = typeof filesOrMutation === "function" ? filesOrMutation : null;
+  const prepared = mutation ? null : allowedEntries(filesOrMutation as PrivateAccessFiles);
+  if (!mutation && !prepared) return { ok: false, error: "invalid private access path" };
 
   return withMemoryLock(async () => {
     const dir = memoryWorktreeDir();
@@ -71,6 +82,10 @@ export async function commitPrivateAccess(
       baseSha = await run("git", ["-C", dir, "rev-parse", "HEAD"]);
       const dirty = await run("git", ["-C", dir, "status", "--porcelain", "--", "access"]);
       if (dirty) return { ok: false, error: "private access checkout has pending changes" };
+      const built = mutation ? mutation() : null;
+      if (built && isRefusal(built)) return { ok: false, error: built.error };
+      const entries = built ? allowedEntries(built) : prepared;
+      if (!entries) return { ok: false, error: "invalid private access path" };
 
       await mkdir(path.join(dir, "access"), { recursive: true });
       for (const [relative, content] of entries) {

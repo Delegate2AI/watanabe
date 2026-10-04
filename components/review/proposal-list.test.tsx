@@ -17,6 +17,7 @@ function proposal(iid: number, over: Partial<Proposal> = {}): Proposal {
     createdAt: "2026-08-18T10:00:00Z",
     webUrl: `https://gl.example.com/mr/${iid}`,
     sourceBranch: `kb/alice/x-${iid}`,
+    sha: `head-${iid}`,
     paths: [`docs/note-${iid}.md`],
     changes: [
       {
@@ -89,7 +90,7 @@ describe("ProposalList", () => {
     await waitFor(() => expect(screen.queryByText("Proposal 1")).toBeNull());
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/review/1",
-      expect.objectContaining({ method: "POST", body: JSON.stringify({ action: "approve" }) }),
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ action: "approve", sha: "head-1" }) }),
     );
     expect(screen.getByText("Proposal 2")).toBeInTheDocument();
     expect(refreshMock).toHaveBeenCalled();
@@ -104,7 +105,7 @@ describe("ProposalList", () => {
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/review/3",
-        expect.objectContaining({ body: JSON.stringify({ action: "reject" }) }),
+        expect.objectContaining({ body: JSON.stringify({ action: "reject", sha: "head-3" }) }),
       ),
     );
   });
@@ -152,6 +153,20 @@ describe("ProposalList", () => {
     // The server never forwards GitLab's own sentence, so the copy must not
     // pretend to quote one, and the proposal stays queued.
     expect(alert).not.toHaveTextContent(messageFor("conflict"));
+    expect(screen.getByText("Proposal 1")).toBeInTheDocument();
+  });
+
+  it("asks the approver to reload when the branch moved after the queue loaded", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: { code: "conflict", detail: "stale_head" } }), { status: 409 }),
+    );
+    render(<ProposalList proposals={[proposal(1)]} viewer={VIEWER} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /^approve$/i }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/changed since you loaded it/i);
+    expect(alert).toHaveTextContent(/reload/i);
     expect(screen.getByText("Proposal 1")).toBeInTheDocument();
   });
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useChangeRequestTerms } from "@/components/app-config-provider";
 import { messageForBody } from "@/lib/errors/messages";
 
 const overlay = "fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4";
@@ -25,6 +26,8 @@ export function AccessModal({
   const [mixed, setMixed] = useState(false);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
+  const [mrUrl, setMrUrl] = useState<string | null>(null);
+  const terms = useChangeRequestTerms();
 
   useEffect(() => {
     let live = true;
@@ -51,18 +54,24 @@ export function AccessModal({
   async function save(): Promise<void> {
     setPending(true);
     setMessage("");
+    setMrUrl(null);
     try {
       const res = await fetch("/api/kb/access", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ path, visibility: selected }),
       });
-      const json = (await res.json()) as { error?: unknown; count?: number; skipped?: string[] };
+      const json = (await res.json()) as { error?: unknown; count?: number; skipped?: string[]; mrUrl?: string };
       if (!res.ok) {
         setMessage(messageForBody(json));
         return;
       }
       const skipped = json.skipped?.length ? ` (${json.skipped.length} skipped)` : "";
+      if (typeof json.mrUrl === "string") {
+        setMrUrl(json.mrUrl);
+        setMessage(`Submitted for review: ${json.count ?? 0} file(s)${skipped}. Merge it to apply the new access.`);
+        return;
+      }
       setMessage(`Updated ${json.count ?? 0} file(s)${skipped}. Refresh to see the tree update.`);
     } catch {
       setMessage("Access change could not be submitted.");
@@ -91,7 +100,19 @@ export function AccessModal({
         {!loading && isDirectory && mixed && (
           <p className="mt-3 text-xs text-amber-600">Files in this folder currently have different access. The boxes show the access they all share; saving replaces every file with the selection above.</p>
         )}
-        {message && <p className="mt-3 text-xs text-ink-muted">{message}</p>}
+        {message && (
+          <p className="mt-3 text-xs text-ink-muted">
+            {message}
+            {mrUrl ? (
+              <>
+                {" "}
+                <a href={mrUrl} target="_blank" rel="noreferrer" className="font-medium text-ink underline">
+                  Open {terms.long}
+                </a>
+              </>
+            ) : null}
+          </p>
+        )}
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" className={`${buttonClass} text-ink-muted`} onClick={onClose}>Close</button>
           <button type="button" className={`${buttonClass} bg-accent text-white`} disabled={pending || selected.length === 0} onClick={save}>

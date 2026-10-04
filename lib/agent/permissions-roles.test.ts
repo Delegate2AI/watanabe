@@ -40,4 +40,12 @@ describe("role-aware write tool gate", () => {
     process.env.ROLES_ENABLED = "0";
     expect(gateAgentTool(SUBMIT_TOOL, {}, "thread-1", "/repo", "viewer@example.com")).toBe("confirm");
   });
+
+  it.each(["mcp__kb__kb_stage_move", "mcp__kb__kb_check"])(
+    "denies a viewer and allows an editor for %s",
+    (tool) => {
+      expect(gateAgentTool(tool, {}, "thread-1", "/repo", "viewer@example.com")).toBe("deny");
+      expect(gateAgentTool(tool, {}, "thread-1", "/repo", "editor@example.com")).toBe("allow");
+    },
+  );
 });

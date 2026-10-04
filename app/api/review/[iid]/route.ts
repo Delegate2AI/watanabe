@@ -20,7 +20,9 @@ import { loadProposal, type Proposal } from "@/lib/review/queue";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const bodySchema = z.object({ action: z.enum(["approve", "reject"]) }).strict();
+const bodySchema = z
+  .object({ action: z.enum(["approve", "reject"]), sha: z.string().trim().min(1).optional() })
+  .strict();
 
 /**
  * A proposer is an email where a publish row named one, and a display name where
@@ -41,8 +43,7 @@ function isSelfApproval(identity: Identity, proposal: Proposal): boolean {
 /**
  * Approve or reject one knowledge-base proposal. Every gate is re-derived here:
  * the flag, the `approve` capability, and the proposal's own clearance through
- * `loadProposal`. Nothing the client sends is trusted beyond the iid and the
- * action, because this is the one surface that can merge into the vault.
+ * `loadProposal`.
  */
 export async function POST(
   request: Request,
@@ -65,6 +66,8 @@ export async function POST(
   }
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) return fail("invalid_request", { detail: "action" });
+  const reviewedSha = parsed.data.sha;
+  if (parsed.data.action === "approve" && !reviewedSha) return fail("invalid_request", { detail: "sha" });
 
   const token = process.env.REPO_WRITE_TOKEN?.trim();
   if (!token) return fail("write_unavailable");
@@ -106,10 +109,14 @@ export async function POST(
     return Response.json({ ok: true });
   }
 
+  if (reviewedSha !== proposal.sha) {
+    log.warn("review: the branch moved after the reviewer loaded it", { iid });
+    return fail("conflict", { detail: "stale_head" });
+  }
+
   let merged: MergeOutcome;
   try {
-    // The sha the queue read, so GitLab refuses if the branch moved since.
-    merged = await getGitHost().mergeChangeRequest({ iid, token, sha: proposal.sha });
+    merged = await getGitHost().mergeChangeRequest({ iid, token, sha: reviewedSha });
   } catch (error) {
     log.warn("review: could not reach GitLab to merge", { iid, err: String(error) });
     return fail("review_unavailable");

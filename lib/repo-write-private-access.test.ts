@@ -105,3 +105,53 @@ describe("commitPrivateAccess attribution", () => {
     expect(() => git(bareDir, "show", "portal-memory:access/skills.yaml")).toThrow();
   });
 });
+
+describe("commitPrivateAccess with a mutation", () => {
+  it("builds the files from the checkout after rebasing onto the remote, so an upstream edit survives", async () => {
+    await commitPrivateAccess(
+      { "access/groups.yaml": "groups:\n  exec: []\n" },
+      { message: "seed", authorName: "Admin User", authorEmail: "admin@example.com" },
+    );
+    const other = path.join(tmpRoot, "other");
+    git(tmpRoot, "clone", "-b", "portal-memory", bareDir, other);
+    git(other, "config", "user.email", "other@example.com");
+    git(other, "config", "user.name", "Other");
+    fs.writeFileSync(path.join(other, "access", "groups.yaml"), "groups:\n  exec: []\n  finance: []\n");
+    git(other, "commit", "-am", "upstream edit");
+    git(other, "push", "origin", "portal-memory");
+
+    const checkout = process.env.MEMORY_CHECKOUT_DIR ?? "";
+    const result = await commitPrivateAccess(
+      () => {
+        const current = fs.readFileSync(path.join(checkout, "access", "groups.yaml"), "utf8");
+        return { "access/groups.yaml": `${current}  legal: []\n` };
+      },
+      { message: "add legal", authorName: "Admin User", authorEmail: "admin@example.com" },
+    );
+
+    expect(result).toEqual({ ok: true });
+    expect(git(bareDir, "show", "portal-memory:access/groups.yaml")).toBe(
+      "groups:\n  exec: []\n  finance: []\n  legal: []",
+    );
+  });
+
+  it("commits nothing and reports the refusal when the mutation refuses the post-rebase state", async () => {
+    const result = await commitPrivateAccess(
+      () => ({ error: "at least one admin is required" }),
+      { message: "refused", authorName: "Admin User", authorEmail: "admin@example.com" },
+    );
+
+    expect(result).toEqual({ ok: false, error: "at least one admin is required" });
+    expect(() => git(bareDir, "show", "portal-memory:access/groups.yaml")).toThrow();
+  });
+
+  it("applies the allow-list to the files the mutation returns", async () => {
+    const escape: Record<string, string> = { "access/../secrets.yaml": "x" };
+    const result = await commitPrivateAccess(
+      () => escape,
+      { message: "escape", authorName: "Admin User", authorEmail: "admin@example.com" },
+    );
+
+    expect(result).toEqual({ ok: false, error: "invalid private access path" });
+  });
+});

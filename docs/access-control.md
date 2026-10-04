@@ -150,7 +150,7 @@ visibility:
 
 A person's clearance is `all-hands` plus every group in `groups.yaml` that contains their canonical address.
 
-Directories do not carry visibility of their own. The admin tree control that sets visibility on a folder (requires `KB_ACCESS_UI_ENABLED`, which depends on `AUTHORITY_ENABLED`) rewrites the `visibility` field of every note under that folder and submits the result through the write path (`KB_WRITE_MODE`). In `mr` mode that pushes a `kb/...` branch and does not open a change request itself, so open one from the git host. In `direct` mode it pushes to `main`. A note it cannot rewrite, for lack of parseable frontmatter, is skipped and reported.
+Directories do not carry visibility of their own. The admin tree control that sets visibility on a folder (requires `KB_ACCESS_UI_ENABLED`, which depends on `AUTHORITY_ENABLED`) rewrites the `visibility` field of every note under that folder and submits the result through the write path (`KB_WRITE_MODE`). In `mr` mode that pushes a `kb/...` branch and opens a change request through the git host, returning its URL. If the host refuses to open it, the control answers `review_unavailable` (HTTP 502) and the pushed branch is kept, so open the change request on the host. In `direct` mode it pushes to `main`. A note it cannot rewrite, for lack of parseable frontmatter, is skipped and reported.
 
 ### How reads are enforced
 
@@ -165,9 +165,9 @@ The review queue at `/review` lists open change requests for the knowledge base 
 - A change request is shown only if the reviewer is cleared for every note it touches. One note outside the reviewer's clearance hides the whole request. A new note with no frontmatter cannot be cleared, so the proposal is hidden from every reviewer except members of the `admins` group, who are authorized before visibility is checked. For a modified, renamed or deleted note, the visibility on the main branch is used.
 - A change request whose diff the git host truncated is skipped, because its paths cannot be authorized.
 - A change request the reviewer is not cleared for answers the same as one that does not exist.
-- Approving merges the change request. The merge is refused if the head commit moved after the server reloaded the proposal for the decision.
+- Approving merges the change request. The queue sends the head commit it displayed. If the branch has moved since, the merge is refused.
 
-The agent that proposes changes never merges on its own. In the default `mr` mode every agent or publish edit lands as a change request that a human with the right role approves (the admin visibility editor pushes a branch and leaves opening the change request to you). A submitter with the `approve` capability can use `direct` mode, which pushes to `main` without one (see [knowledge-base.md](./knowledge-base.md)).
+The agent that proposes changes never merges on its own. In the default `mr` mode every agent or publish edit lands as a change request that a human with the right role approves. A submitter with the `approve` capability can use `direct` mode, which pushes to `main` without one (see [knowledge-base.md](./knowledge-base.md)).
 
 ## Roles and writing
 
@@ -231,7 +231,7 @@ What the code confirms:
 - `flags.yaml`, `roles.yaml` and `aliases.yaml` are cached against the file's modification time and size. An edit on the checkout, including one that arrives by git, is picked up on the next read without a restart. Edits made through the admin screens invalidate the cache immediately.
 - `groups.yaml` is read from disk on each lookup, so group membership changes apply to the next request.
 - Filtered vault copies are keyed on the group and role files, so a membership change leads to a new copy being built for the affected clearance sets.
-- The portal refreshes its `portal-memory` checkout (a fetch and hard reset) at startup when memory is enabled. Before it writes access files it fetches and rebases the checkout onto the remote branch, then writes the full contents of `groups.yaml`, `roles.yaml` and `flags.yaml` prepared from its local state. An admin screen change made after an edit on the git host can therefore overwrite that edit. After a manual edit on the git host, restart the portal (with memory enabled) so the checkout has it before you use the admin screens.
+- The portal refreshes its `portal-memory` checkout (a fetch and hard reset) at startup when memory is enabled. Before it writes access files it fetches and rebases the checkout onto the remote branch. Edits made through the access admin screen (groups, roles, flags) are computed again from the rebased files, so an edit made on the git host is kept. The other private-access writers (people directory, skills, connectors) write contents prepared before the rebase.
 - A running chat session fixes the user's clearance and flags when it starts. Changes made through the admin API (`POST /api/access`) evict all warm chat sessions so the next message rebuilds them with the new values. Out-of-band edits do not trigger this eviction.
 - Changes to `git.botEmail` and other `portal.yaml` keys take effect on restart.
 

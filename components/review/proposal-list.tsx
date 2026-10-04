@@ -12,6 +12,10 @@ function mergeRefused(terms: ChangeRequestTerms): string {
   return `The merge was refused, so this is still waiting. Open the ${terms.long} to see why.`;
 }
 
+function staleHead(terms: ChangeRequestTerms): string {
+  return `This ${terms.long} changed since you loaded it, so nothing was merged. Reload the queue and review the latest changes.`;
+}
+
 function detailOf(body: unknown): string | undefined {
   if (typeof body !== "object" || body === null) return undefined;
   const error = (body as { error?: { detail?: unknown } }).error;
@@ -21,6 +25,7 @@ function detailOf(body: unknown): string | undefined {
 
 function failureMessage(body: unknown, terms: ChangeRequestTerms): string {
   if (codeFromBody(body) === "conflict" && detailOf(body) === "merge_refused") return mergeRefused(terms);
+  if (codeFromBody(body) === "conflict" && detailOf(body) === "stale_head") return staleHead(terms);
   return messageForBody(body);
 }
 
@@ -46,14 +51,14 @@ export function ProposalList({
 
   const visible = proposals.filter((proposal) => !decided.includes(proposal.iid));
 
-  async function decide(iid: number, action: "approve" | "reject"): Promise<void> {
+  async function decide(iid: number, sha: string, action: "approve" | "reject"): Promise<void> {
     setPending(iid);
     setFailure(null);
     try {
       const res = await fetch(`/api/review/${iid}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, sha }),
       });
       const body: unknown = await res.json().catch(() => null);
       if (!res.ok) {
@@ -98,7 +103,7 @@ export function ProposalList({
           isSelf={isSelfProposal(proposal.proposer, viewer)}
           busy={pending !== null}
           error={failure?.iid === proposal.iid ? failure.message : null}
-          onDecide={(action) => void decide(proposal.iid, action)}
+          onDecide={(action) => void decide(proposal.iid, proposal.sha, action)}
           terms={terms}
         />
       ))}

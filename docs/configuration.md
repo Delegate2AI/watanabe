@@ -127,7 +127,7 @@ Identities used for unattended commits. All three are non-empty strings. The git
 
 ## auth
 
-`auth.mode` selects how identity is established. Only the block named by `mode` may be present: a block for a different mode is rejected with an "Unrecognized key" error, so remove inactive blocks when you switch modes. If `auth` is omitted entirely the result is `mode: proxy-header` with all proxy header defaults.
+`auth.mode` selects how identity is established. Only the block named by `mode` is validated. Blocks for other modes may stay in the file and are ignored, so you can keep several and switch with a one-line change. Note that `${VAR}` references in an ignored block are still resolved, so they must be set. If `auth` is omitted entirely the result is `mode: proxy-header` with all proxy header defaults.
 
 How each mode behaves at runtime is documented in [authentication.md](./authentication.md), and the self-hosted login flow in [oidc-auth-mode.md](./oidc-auth-mode.md). This section lists keys only.
 

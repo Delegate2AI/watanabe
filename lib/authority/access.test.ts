@@ -32,7 +32,9 @@ describe("loadAccess", () => {
     process.env.ROLES_ENABLED = "1";
     process.env.BOOTSTRAP_ADMINS = "admin@example.com";
     commitPrivateAccessMock.mockReset().mockImplementation(
-      async (files: Record<string, string>) => {
+      async (input: Record<string, string> | (() => Record<string, string> | { error: string })) => {
+        const files = typeof input === "function" ? input() : input;
+        if ("error" in files) return { ok: false, error: files.error };
         for (const [relative, content] of Object.entries(files)) {
           writeFileSync(path.join(root, relative), content);
         }
@@ -80,7 +82,9 @@ describe("writeAccess", () => {
     process.env.ROLES_ENABLED = "1";
     process.env.BOOTSTRAP_ADMINS = "admin@example.com";
     commitPrivateAccessMock.mockReset().mockImplementation(
-      async (files: Record<string, string>) => {
+      async (input: Record<string, string> | (() => Record<string, string> | { error: string })) => {
+        const files = typeof input === "function" ? input() : input;
+        if ("error" in files) return { ok: false, error: files.error };
         for (const [relative, content] of Object.entries(files)) {
           writeFileSync(path.join(root, relative), content);
         }
@@ -113,9 +117,49 @@ describe("writeAccess", () => {
       default: "viewer",
     });
     expect(commitPrivateAccessMock).toHaveBeenLastCalledWith(
-      expect.any(Object),
+      expect.any(Function),
       expect.objectContaining({ authorEmail: "admin@example.com" }),
     );
+  });
+
+  it("applies the change to the state the commit rebased onto, keeping an upstream edit", async () => {
+    commitPrivateAccessMock.mockImplementation(
+      async (input: () => Record<string, string> | { error: string }) => {
+        writeFileSync(
+          path.join(root, "access", "groups.yaml"),
+          "groups:\n  exec: [member@example.com]\n  all-hands: []\n  legal: [lawyer@example.com]\n",
+        );
+        const files = input();
+        if ("error" in files) return { ok: false, error: files.error };
+        for (const [relative, content] of Object.entries(files)) writeFileSync(path.join(root, relative), content);
+        return { ok: true };
+      },
+    );
+
+    const result = await writeAccess({ verb: "addToGroup", group: "exec", email: "new@example.com" }, "admin@example.com", { root, vaultRoot });
+
+    expect(result.ok).toBe(true);
+    expect(loadAccess(root).groups).toEqual({
+      exec: ["member@example.com", "new@example.com"],
+      "all-hands": [],
+      legal: ["lawyer@example.com"],
+    });
+  });
+
+  it("refuses when the rebased state no longer has an admin", async () => {
+    process.env.BOOTSTRAP_ADMINS = "";
+    writeFileSync(path.join(root, "access", "roles.yaml"), "roles:\n  admin: [admin@example.com, member@example.com]\ndefault: viewer\n");
+    commitPrivateAccessMock.mockImplementation(
+      async (input: () => Record<string, string> | { error: string }) => {
+        writeFileSync(path.join(root, "access", "roles.yaml"), "roles:\n  admin: [member@example.com]\ndefault: viewer\n");
+        const files = input();
+        return "error" in files ? { ok: false, error: files.error } : { ok: true };
+      },
+    );
+
+    const result = await writeAccess({ verb: "setRole", email: "member@example.com", role: "viewer" }, "admin@example.com", { root, vaultRoot });
+
+    expect(result).toEqual({ ok: false, error: "at least one admin is required" });
   });
 
   it("refuses invalid changes and never commits them", async () => {
@@ -155,14 +199,8 @@ describe("writeAccess", () => {
     expect(readFileSync(path.join(root, "access", "flags.yaml"), "utf8")).toContain(
       "MEMORY_ENABLED: false",
     );
-    expect(commitPrivateAccessMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        "access/groups.yaml": expect.any(String),
-        "access/roles.yaml": expect.any(String),
-        "access/flags.yaml": expect.any(String),
-      }),
-      expect.objectContaining({ authorEmail: "admin@example.com" }),
-    );
+    const mutation = commitPrivateAccessMock.mock.lastCall?.[0] as () => Record<string, string>;
+    expect(Object.keys(mutation()).sort()).toEqual(["access/flags.yaml", "access/groups.yaml", "access/roles.yaml"]);
   });
 
   it("refuses an unknown flag before committing", async () => {
@@ -184,7 +222,7 @@ describe("writeAccess", () => {
     );
 
     expect(commitPrivateAccessMock).toHaveBeenLastCalledWith(
-      expect.any(Object),
+      expect.any(Function),
       expect.objectContaining({ message: "chore(access): set flag PACKAGES_ENABLED=on" }),
     );
 
@@ -195,7 +233,7 @@ describe("writeAccess", () => {
     );
 
     expect(commitPrivateAccessMock).toHaveBeenLastCalledWith(
-      expect.any(Object),
+      expect.any(Function),
       expect.objectContaining({ message: "chore(access): set flag PACKAGES_ENABLED=off" }),
     );
   });

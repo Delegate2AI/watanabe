@@ -15,7 +15,7 @@ A request with no identity gets a `401` from API routes. For pages, the app shel
 
 The identity is only an email and a name. Groups, roles and clearance are looked up from the email afterwards (see [access control](./access-control.md)). The portal also records the name your identity provider sends into its people directory the first time it sees someone.
 
-The `auth` block is validated strictly at boot. Only the sub-block named by `mode` may be present: any other auth sub-block in `portal.yaml` is rejected with an "Unrecognized key" error. When you switch modes, replace the sub-block as well as the `mode` value.
+The `auth` block is validated strictly at boot, and only the sub-block named by `mode` is validated. Sub-blocks for the other modes may stay in the file and are ignored (`../lib/config/auth-input.ts`), so you can switch modes with a one-line change.
 
 | Mode | Who proves identity | Use when |
 |---|---|---|

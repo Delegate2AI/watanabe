@@ -124,7 +124,7 @@ export class AgentSession {
         buildMemoryContextSync(this.ownerEmail, this.clearanceSet),
         this.clearanceSet,
         setup.modelChoice,
-        undefined,
+        setup.projectContext,
         Object.keys(setup.connectorGrants.servers).length > 0 ? setup.connectorGrants.servers : undefined,
         setup.skillsPlugin,
         this.docBinding,

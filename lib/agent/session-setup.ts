@@ -3,6 +3,8 @@ import { isAuthorityEnabled } from "@/lib/authority/config";
 import { resolveClearanceForEmail } from "@/lib/identity/resolve";
 import { getDb } from "@/lib/db/client";
 import { getThreadModelChoice } from "@/lib/db/threads";
+import { projectContextForThread } from "@/lib/db/project-context";
+import { isProjectsEnabled } from "@/lib/projects/config";
 import { isConnectorsEnabled } from "@/lib/connectors/config";
 import { EMPTY_GRANTS, resolveConnectorGrants, type ConnectorGrants } from "@/lib/connectors/grants";
 import type { OauthBearer } from "@/lib/connectors/types";
@@ -28,6 +30,7 @@ export interface SessionSetup {
   modelChoice: { model: string | null; effort: string | null } | null;
   carriedCostUsd: number;
   attachmentDir?: string;
+  projectContext?: string;
 }
 
 export function attachmentRootFor(ownerEmail: string, threadId: string): string | undefined {
@@ -47,6 +50,15 @@ function storedModelOverride(threadId: string): { model: string | null; effort: 
     return null;
   }
   return stored && (stored.model || stored.effort) ? stored : null;
+}
+
+function resolveProjectContext(ownerEmail: string, threadId: string | undefined, clearanceSet: string[]): string | undefined {
+  if (!threadId || !isProjectsEnabled()) return undefined;
+  try {
+    return projectContextForThread(getDb(), threadId, ownerEmail, clearanceSet);
+  } catch {
+    return undefined;
+  }
 }
 
 function resolveModelOverride(
@@ -91,5 +103,6 @@ export function resolveSessionSetup(
     modelChoice,
     carriedCostUsd: resume ? (lastSessionCostUsd.get(resume) ?? 0) : 0,
     attachmentDir: attachmentDirForSession(ownerEmail, resume ?? adoptSessionId),
+    projectContext: resolveProjectContext(ownerEmail, resume ?? adoptSessionId, clearanceSet),
   };
 }

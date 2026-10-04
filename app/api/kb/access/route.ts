@@ -33,6 +33,7 @@ function forbidden(): Response {
 function refusal(reason: string | undefined): Response {
   if (reason === "forbidden") return fail("needs_role");
   if (reason === "write_unavailable") return fail("write_unavailable");
+  if (reason === "review_unavailable") return fail("review_unavailable");
   if (reason === "feature disabled" || reason === "path not found") return fail("not_found");
   if (reason === "visibility submission failed" || reason === "visibility update failed") {
     return fail("internal");
@@ -83,7 +84,12 @@ export async function POST(request: Request): Promise<Response> {
 
   const result = await setNoteVisibility(parsed.data.path, parsed.data.visibility, actorEmail);
   if (!result.ok) return refusal(result.error);
-  return Response.json({ branch: result.branch, count: result.count ?? 0, skipped: result.skipped ?? [] });
+  return Response.json({
+    branch: result.branch,
+    ...(result.mrUrl ? { mrUrl: result.mrUrl } : {}),
+    count: result.count ?? 0,
+    skipped: result.skipped ?? [],
+  });
 }
 
 export async function GET(request: Request): Promise<Response> {

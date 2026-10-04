@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { STARTER_ICON_NAMES } from "./icons";
 import { isHttpsOrLoopback } from "../http/url-scheme";
+import { dropInactiveAuthBlocks } from "./auth-input";
 
 /**
  * `portal.yaml`'s shape (spec 16).
@@ -238,18 +239,16 @@ const OidcSchema = z
     }
   });
 
-/**
- * Only the block named by `mode` is validated. A `jwt` block left in the file
- * under `mode: proxy-header` is ignored rather than rejected, so an operator
- * can keep both and flip the mode.
- */
 const AuthSchema = z
-  .discriminatedUnion("mode", [
-    z.object({ mode: z.literal("proxy-header"), proxyHeader: ProxyHeaderSchema }).strict(),
-    z.object({ mode: z.literal("jwt"), jwt: JwtSchema }).strict(),
-    z.object({ mode: z.literal("none"), none: NoneSchema }).strict(),
-    z.object({ mode: z.literal("oidc"), oidc: OidcSchema }).strict(),
-  ])
+  .preprocess(
+    dropInactiveAuthBlocks,
+    z.discriminatedUnion("mode", [
+      z.object({ mode: z.literal("proxy-header"), proxyHeader: ProxyHeaderSchema }).strict(),
+      z.object({ mode: z.literal("jwt"), jwt: JwtSchema }).strict(),
+      z.object({ mode: z.literal("none"), none: NoneSchema }).strict(),
+      z.object({ mode: z.literal("oidc"), oidc: OidcSchema }).strict(),
+    ]),
+  )
   .prefault({ mode: "proxy-header", proxyHeader: {} });
 
 /**

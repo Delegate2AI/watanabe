@@ -80,7 +80,9 @@ describe("access administration with an editor default", () => {
     process.env.AUTHORITY_ENABLED = "1";
     writeFileSync(path.join(root, "access", "groups.yaml"), "groups:\n  exec: [member@example.com]\n");
     writeFileSync(rolesPath, "roles:\n  admin: [admin@example.com]\ndefault: editor\n");
-    commitPrivateAccessMock.mockReset().mockImplementation(async (files: Record<string, string>) => {
+    commitPrivateAccessMock.mockReset().mockImplementation(async (mutation: () => Record<string, string> | { error: string }) => {
+      const files = mutation();
+      if ("error" in files) return { ok: false, error: files.error };
       for (const [relative, content] of Object.entries(files)) writeFileSync(path.join(root, relative), content);
       return { ok: true };
     });

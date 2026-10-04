@@ -41,15 +41,11 @@ const PATH_SCOPED_TOOLS: ReadonlySet<string> = new Set(["Read", "Glob", "Grep"])
  */
 export const MCP_KB_TOOL_PREFIX = "mcp__kb__";
 
-/**
- * The five write/staging tools this portal's `kb` MCP server carries ONLY
- * when `isKbWriteEnabled()` — see `lib/kb-mcp/write-tools.ts`. Four of them
- * only ever touch a per-thread git worktree; `SUBMIT_TOOL` below is the one
- * that actually pushes and is singled out for the confirm tier.
- */
 export const WRITE_TOOL_NAMES: ReadonlySet<string> = new Set([
   "mcp__kb__kb_stage_edit",
   "mcp__kb__kb_stage_delete",
+  "mcp__kb__kb_stage_move",
+  "mcp__kb__kb_check",
   "mcp__kb__kb_diff",
   "mcp__kb__kb_discard",
   "mcp__kb__kb_submit",

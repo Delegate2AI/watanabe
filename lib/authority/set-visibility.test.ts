@@ -13,6 +13,13 @@ vi.mock("@/lib/repo-write", () => ({
   discard: (...args: unknown[]) => discardMock(...args),
   worktreeVaultRoot: () => worktreeRoot,
 }));
+const createChangeRequestMock = vi.fn();
+vi.mock("@/lib/git-host", () => ({
+  getGitHost: () => ({
+    terms: { short: "MR", long: "merge request" },
+    createChangeRequest: (...args: unknown[]) => createChangeRequestMock(...args),
+  }),
+}));
 
 import { setNoteVisibility } from "./set-visibility";
 
@@ -50,6 +57,7 @@ describe("setNoteVisibility", () => {
     ensureWorktreeMock.mockReset().mockResolvedValue(root);
     submitMock.mockReset().mockResolvedValue({ ok: true, branch: "main" });
     discardMock.mockReset().mockResolvedValue(undefined);
+    createChangeRequestMock.mockReset().mockResolvedValue({ webUrl: "https://git.example.com/mr/9", iid: 9 });
   });
 
   afterEach(() => {
@@ -116,5 +124,42 @@ describe("setNoteVisibility", () => {
     const result = await setNoteVisibility("../access/roles.yaml", ["exec"], ADMIN, { accessRoot: root });
     expect(result.ok).toBe(false);
     expect(submitMock).not.toHaveBeenCalled();
+  });
+
+  it("opens a change request for the pushed branch in mr mode and returns its url", async () => {
+    delete process.env.KB_WRITE_MODE;
+    submitMock.mockResolvedValue({ ok: true, branch: "kb/admin/setvis-09-finance" });
+
+    const result = await setNoteVisibility("09-finance", ["finance"], ADMIN, { accessRoot: root });
+
+    expect(result).toMatchObject({ ok: true, branch: "kb/admin/setvis-09-finance", mrUrl: "https://git.example.com/mr/9", count: 2 });
+    expect(submitMock).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ mode: "mr" }));
+    expect(createChangeRequestMock).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceBranch: "kb/admin/setvis-09-finance", token: "test-token" }),
+    );
+    const [{ title, description }] = createChangeRequestMock.mock.calls[0] as [{ title: string; description: string }];
+    expect(title).toContain("09-finance");
+    expect(description).toContain("finance");
+    expect(description).toContain(ADMIN);
+  });
+
+  it("never opens a change request in direct mode", async () => {
+    const result = await setNoteVisibility("09-finance/fees.md", ["exec"], ADMIN, { accessRoot: root });
+    expect(result.ok).toBe(true);
+    expect(result.mrUrl).toBeUndefined();
+    expect(createChangeRequestMock).not.toHaveBeenCalled();
+  });
+
+  it("reports review_unavailable with the branch when the pushed branch gets no change request", async () => {
+    delete process.env.KB_WRITE_MODE;
+    submitMock.mockResolvedValue({ ok: true, branch: "kb/admin/setvis-fees" });
+    createChangeRequestMock.mockRejectedValue(new Error("502"));
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await setNoteVisibility("09-finance/fees.md", ["exec"], ADMIN, { accessRoot: root });
+
+    expect(result).toEqual({ ok: false, error: "review_unavailable", branch: "kb/admin/setvis-fees" });
+    expect(discardMock).not.toHaveBeenCalled();
+    error.mockRestore();
   });
 });

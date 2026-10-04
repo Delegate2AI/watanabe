@@ -63,6 +63,19 @@ describe("POST /api/kb/access", () => {
     expect(json.count).toBe(1);
     expect(setNoteVisibilityMock).toHaveBeenCalledWith("a.md", ["exec"], "admin@example.com");
   });
+
+  it("returns the change request url an mr-mode write opened", async () => {
+    setNoteVisibilityMock.mockResolvedValue({ ok: true, branch: "kb/a/setvis-a", mrUrl: "https://git.example.com/mr/9", count: 1, skipped: [] });
+    const res = await POST(post({ path: "a.md", visibility: ["exec"] }));
+    expect(await res.json()).toEqual({ branch: "kb/a/setvis-a", mrUrl: "https://git.example.com/mr/9", count: 1, skipped: [] });
+  });
+
+  it("502s review_unavailable when the branch was pushed but no change request opened", async () => {
+    setNoteVisibilityMock.mockResolvedValue({ ok: false, error: "review_unavailable", branch: "kb/a/setvis-a" });
+    const res = await POST(post({ path: "a.md", visibility: ["exec"] }));
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: { code: "review_unavailable" } });
+  });
 });
 
 describe("GET /api/kb/access", () => {

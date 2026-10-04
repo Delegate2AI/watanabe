@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import type { Database as DatabaseType } from "better-sqlite3";
 import { getDb } from "@/lib/db/client";
 import { runJob } from "@/lib/jobs/dispatch";
+import { registerBuiltInJobs } from "@/lib/jobs/handlers";
 import { getJob } from "@/lib/jobs/registry";
 
 type CliOptions = {
@@ -20,6 +21,8 @@ export async function runCli(args: string[], options: CliOptions = {}): Promise<
     return 1;
   }
 
+  const db = options.db ?? getDb();
+  registerBuiltInJobs(db);
   const job = getJob(jobName);
   if (!job) {
     error(`unknown job: ${jobName}`);
@@ -30,12 +33,14 @@ export async function runCli(args: string[], options: CliOptions = {}): Promise<
     return 1;
   }
 
-  const result = await runJob(jobName, options.db ?? getDb());
+  const result = await runJob(jobName, db);
   output(JSON.stringify({ job: jobName, ...result }));
   return result.status === "succeeded" ? 0 : 1;
 }
 
 const entry = process.argv[1];
 if (entry && fileURLToPath(import.meta.url) === path.resolve(entry)) {
-  process.exitCode = await runCli(process.argv.slice(2));
+  void runCli(process.argv.slice(2)).then((code) => {
+    process.exitCode = code;
+  });
 }
