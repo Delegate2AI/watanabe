@@ -49,6 +49,15 @@ Configuration has three layers, lowest to highest precedence: built-in defaults,
 
 Point `REPO_URL` at your knowledge base repository and supply `REPO_READ_TOKEN` and `REPO_WRITE_TOKEN`. GitHub (including GitHub Enterprise) and GitLab are supported. The host is detected from `REPO_URL`: github.com selects GitHub, anything else selects GitLab. Set `GIT_HOST=github` or `GIT_HOST=gitlab` to choose explicitly.
 
+## Documentation
+
+The full guides live in [`docs/`](docs/README.md):
+
+- [Getting started](docs/getting-started.md) and [Deployment](docs/deployment.md)
+- [Configuration](docs/configuration.md), [Environment variables](docs/environment.md), and [Feature flags](docs/feature-flags.md)
+- [Authentication](docs/authentication.md) and [Access control](docs/access-control.md)
+- [Architecture](docs/architecture.md), [Knowledge base](docs/knowledge-base.md), and [Integrations](docs/integrations.md)
+
 ## Development
 
 ```sh
